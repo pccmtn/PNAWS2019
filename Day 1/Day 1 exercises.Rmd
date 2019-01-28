@@ -1,0 +1,217 @@
+---
+title: "Day 1 Exercises - PNAWS2019"
+author: "Martina Pocchiari"
+date: "1/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(data.table)
+library(dplyr)
+library(foreign)
+library(qgraph)
+library(igraph)
+```
+
+## Morning Session Exercises
+
+
+
+## Afternoon Session Exercises
+
+
+### Look through the paper to get an idea of what this network represents. What do the nodes and edges represent?
+
+The nodes represent characters of the GoT saga. The edges maybe represent the number of times the characters have interacted with each other. These edges represent the relationships between characters.
+
+### Look at the data in RStudio using the 'View' function. This matrix encodes a network. Can you figure out how? What do the rows stand for and what do the columns stand for?
+
+The rows stand for the character pairings relationship strength. The columns stand for character 1, character 2, interaction strength. 
+
+```{r, warning=F, message=F, echo=FALSE}
+
+Data <- read.csv("Practical_1.2/stormofswords.csv", stringsAsFactors = F)
+
+
+View(Data)
+qgraph(Data, directed = FALSE)
+```
+
+### When plotting an undirected graph using an adjacency or weights matrix as input I normally do not have to set the directed argument? Now that I use an edgelist, however, I do. Why?
+
+We use the directed = FALSE argument because the adjacency matrix entails information about the direction in the symmetry. Here however we don't have any symmetry information and therefore we need to be explicit.
+
+### Recreate the plot above, changing the layout to a spring layout, the edge color to ‘"darkblue"‘ and the node size to 3. Look at the qgraph help page to figure out the commands needed (?qgraph). Note: your computer might generate a different spring layout (nodes placed on different locations).
+
+```{r, warning=F, message=F, echo=FALSE}
+qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F)
+
+```
+
+### What values did qgraph set to cut and maximum? Note: minimum is always set to 0 by default and not shown with details = TRUE unless it differs from 0.
+
+```{r, warning=F, message=F, echo=FALSE}
+QG <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F)
+
+```
+
+The cut value defaults to 0 for graphs with less then 20 nodes. For larger graphs the cut value is automatically chosen to be equal to the maximum of the 75th quantile of absolute edge strengths or the edge strength corresponding to 2n-th edge strength (n being the number of nodes). In this case it equals `r QG$graphAttributes$Graph$cut`.
+
+qgraph regards the highest of the maximum or highest absolute edge weight as the highest weight to scale the edge widths too. To compare several graphs, set this argument to a higher value than any edge weight in the graphs (typically 1 for correlations). In this case it equals `r QG$graphAttributes$Graph$maximum`.
+
+
+### Set the minimum argument to 1, 5 and 10 while using a spring layout. How does the network change? Do the same using the threshold argument. Can you explain why the layout remains the same using minimum but changes using threshold?
+
+
+```{r, warning=F, message=F, results='hide', fig.show = 'hide', echo=FALSE}
+min_1 <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F, minimum = 1, title = 'Minimum = 1')
+min_5 <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F, minimum = 5, title = 'Minimum = 5')
+min_10 <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F, minimum = 10, title = 'Minimum = 10')
+
+```
+
+The plots with the different minimum values are shown below:
+
+```{r, warning=F, message=F, fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+layout(matrix(c(rep(1,10), rep(2,10), rep(3,10)), 3, 30, byrow = TRUE))
+plot(min_1)
+plot(min_5)
+plot(min_10)
+
+```
+
+The plots with the different cutoff values are shown below:
+
+```{r, warning=F, message=F, results='hide', fig.show = 'hide', echo=FALSE}
+cutoff_1 <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F, threshold = 1, title = 'Threshold = 1')
+cutoff_5 <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F, threshold = 5, title = 'Threshold = 5')
+cutoff_10 <- qgraph(Data, layout = "spring", edge.color = 'darkblue', vsize = 3, directed = F, threshold = 10, title = 'Threshold = 10')
+
+```
+
+```{r, warning=F, message=F, fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+layout(matrix(c(rep(1,10), rep(2,10), rep(3,10)), 3, 30, byrow = TRUE))
+plot(cutoff_1)
+plot(cutoff_5)
+plot(cutoff_10)
+
+```
+
+
+The layout remains the same using minimum because edges with absolute weights under that value are not shown (but not omitted). The layout differ using threshold because edges with absolute weight that are not above this value are removed from the network. This differs from minimum which simply changes the scaling of width and color so that edges with absolute weight under minimum are not plotted. Setting a threshold influences the spring layout and centrality measures obtained with the graph whereass setting a minimum does not.
+
+
+### Only by looking at the above picture, can you derive: (i) The degree-centrality of Paris? (ii) The shortest path length between Milan and New York, and how many paths there are of this length? (iii) Of all shortest paths between all pairs of nodes, how many go through Santiago?
+
+```{r, warning=F, message=F, fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+
+# Load network:
+Graph <- read_graph("http://files.indicatrix.org/pandemic.graphml", format = "graphml") # Extract edgelist:
+Edgelist <- get.adjacency(Graph)
+# Labels:
+Labels <- V(Graph)$label
+
+#  Layout:
+Layout <- cbind(x = V(Graph)$x,
+                y = V(Graph)$y)
+# Color:
+Color <- c(
+  rep("blue",12),
+  rep("black",12),
+  rep("red",12),
+  rep("yellow",12)
+)
+# Plot in qgraph:
+
+qgraph(Edgelist, labels = Labels, color = Color,
+       layout= Layout, directed = FALSE,
+       vsize = 4, esize = 1, edge.color = "black")
+```
+
+
+
+### Make a change to the Layout argument to place the node Jakarta a bit lower
+
+```{r, warning=F, message=F, fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+
+# Load network:
+Graph <- read_graph("http://files.indicatrix.org/pandemic.graphml", format = "graphml") # Extract edgelist:
+Edgelist <- get.adjacency(Graph)
+# Labels:
+Labels <- V(Graph)$label
+
+#  Layout:
+Layout <- cbind(x = V(Graph)$x,
+                y = V(Graph)$y)
+
+Layout[35, 2] <- mean(c(577.29913, 176.57779))-50
+
+Layout_with_labels <- cbind(Labels, Layout)
+
+# Color:
+Color <- c(
+  rep("blue",12),
+  rep("black",12),
+  rep("red",12),
+  rep("yellow",12)
+)
+# Plot in qgraph:
+
+qgraph(Edgelist, labels = Labels, color = Color,
+       layout= Layout, directed = FALSE,
+       vsize = 4, esize = 1, edge.color = "black")
+
+Graph <- qgraph(Edgelist, labels = Labels, color = Color,
+       layout= Layout, directed = FALSE,
+       vsize = 4, esize = 1, edge.color = "black")
+
+# analyze how important or central nodes are in the network
+Centrality <- centrality(Graph, all.shortest.paths = TRUE)
+
+Miami <- which(Labels == "Miami")
+
+# Node strength (also called degree) sums the connected edge weights to a node. The node strength of the city Miami is
+Centrality$OutDegree[Miami]
+
+# Closeness computes how "close" two nodes are together in the network:
+Centrality$Closeness[Miami]
+
+# Finally, Betweenness computes how often one node is featured in the most efficient (shortest) paths between other node:
+
+Centrality$Betweenness[Miami]
+
+
+```
+
+### Compare the centrality of the cities named "Bangkok" and "Atlanta"
+
+```{r, warning=F, message=F, fig.show = 'hide', echo=FALSE}
+
+Centrality <- centrality(Graph, all.shortest.paths = TRUE)
+
+Atlanta <- which(Labels == "Atlanta")
+Bangkok <- which(Labels == "Bangkok")
+
+# Node strength 
+
+# Centrality$OutDegree[Miami]
+
+# Closeness 
+
+# Centrality$Closeness[Miami]
+
+# Betweenness 
+
+# Centrality$Betweenness[Miami]
+
+## Comparison 
+data.frame(City = c("Atlanta", "Bangkok"), 
+           `Node Strength` = c(Centrality$OutDegree[Atlanta], Centrality$OutDegree[Bangkok]),
+           `Closeness` = c(Centrality$Closeness[Atlanta], Centrality$Closeness[Bangkok]),
+           `Betweenness` = c(Centrality$Betweenness[Atlanta], Centrality$Betweenness[Bangkok]))
+
+
+```
+
+#
+
