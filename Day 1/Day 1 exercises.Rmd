@@ -13,10 +13,6 @@ library(qgraph)
 library(igraph)
 ```
 
-## Morning Session Exercises
-
-
-
 ## Afternoon Session Exercises
 
 
@@ -171,14 +167,14 @@ Centrality <- centrality(Graph, all.shortest.paths = TRUE)
 Miami <- which(Labels == "Miami")
 
 # Node strength (also called degree) sums the connected edge weights to a node. The node strength of the city Miami is
-Centrality$OutDegree[Miami]
+# Centrality$OutDegree[Miami]
 
 # Closeness computes how "close" two nodes are together in the network:
-Centrality$Closeness[Miami]
+# Centrality$Closeness[Miami]
 
 # Finally, Betweenness computes how often one node is featured in the most efficient (shortest) paths between other node:
 
-Centrality$Betweenness[Miami]
+# Centrality$Betweenness[Miami]
 
 
 ```
@@ -213,5 +209,135 @@ data.frame(City = c("Atlanta", "Bangkok"),
 
 ```
 
-#
+### List the most and least central node according to degree, closeness and betweenness. If multiple nodes are equally central, list them all.
+
+```{r, warning=F, message=F, fig.show = 'hide', echo=FALSE}
+
+Centrality <- centrality(Graph, all.shortest.paths = TRUE)
+
+list_labs <- list()
+
+for (i in 1:length(Labels)) {
+  list_labs[[i]] <- which(Labels == Labels[i])
+}
+
+names(list_labs) <- Labels
+
+
+
+node_strenghts <- list()
+Closeness <- list()
+Betweenness <- list()
+
+for (i in 1:length(list_labs)) {
+  
+  node_strenghts[[i]] <- Centrality$OutDegree[i]
+  Closeness[[i]] <- Centrality$Closeness[i]
+  Betweenness[[i]] <- Centrality$Betweenness[i]
+  
+}
+
+names(node_strenghts) <- Labels
+names(Closeness) <- Labels
+names(Betweenness) <- Labels
+
+
+
+node_strenghts.df <- node_strenghts %>% 
+  dplyr::bind_rows() %>% 
+  mutate(Measure = "Node Strength")
+
+Closeness.df <- Closeness %>% 
+  dplyr::bind_rows() %>% 
+  mutate(Measure = "Closeness")
+
+Betweenness.df <- Betweenness %>% 
+  dplyr::bind_rows() %>% 
+  mutate(Measure = "Betweenness")
+
+Global_measures <- node_strenghts.df %>%
+  bind_rows(list(., Closeness.df, Betweenness.df)) %>%
+  distinct %>%
+  t()
+
+colnames(Global_measures) <- Global_measures[49, ]
+row_names_df <- rownames(Global_measures)
+Global_measures <- Global_measures %>% as.data.frame %>% slice(-49)
+rownames(Global_measures) <- row_names_df[-49]
+
+Global_measures <- Global_measures %>% 
+       mutate(Cities = row_names_df[-49]) %>% 
+       arrange(desc(`Node Strength`, Closeness, Betweenness)) %>%
+       mutate_at(., .vars = c("Node Strength", "Closeness", "Betweenness"), 
+                 .funs = function(x) round(as.numeric(x), digits = 4)) %>%
+    select(Cities, `Node Strength`, Closeness, Betweenness)
+
+
+Global_measures.m <- data.table::melt(Global_measures, id.vars = "Cities") %>% 
+  mutate(max = value, min = value)
+
+(Global_measures.d <- Global_measures.m%>%
+  group_by(variable) %>%
+  summarise(max = max(value), min = min(value)) %>%
+  inner_join(., Global_measures.m %>% select(Cities, variable, max) %>% rename(Cities_max = Cities), 
+             by = c("variable", "max")) %>%
+  inner_join(., Global_measures.m %>% select(Cities, variable, min) %>% rename(Cities_min = Cities), 
+             by = c("variable", "min")))
+
+```
+
+### Compute the average degree, closeness and betweenness per virus (color). Which virus do you think is the most dangerous?
+
+```{r, warning=F, message=F, fig.show = 'hide', echo=FALSE}
+
+Colors <- which(Color == "red")
+
+list_cols <- list()
+
+for (i in 1:length(Color)) {
+  list_cols[[i]] <- which(Color == Color[i])
+}
+
+names(list_cols) <- Color
+
+
+
+node_strenghts_cols <- list()
+Closeness_cols <- list()
+Betweenness_cols <- list()
+
+for (i in 1:length(list_cols)) {
+  
+  node_strenghts_cols[[i]] <- Centrality$OutDegree[i]
+  Closeness_cols[[i]] <- Centrality$Closeness[i]
+  Betweenness_cols[[i]] <- Centrality$Betweenness[i]
+  
+}
+
+names(node_strenghts_cols) <- Color
+names(Closeness_cols) <- Color
+names(Betweenness_cols) <- Color
+
+
+
+node_strenghts_cols.df <- plyr:::ldply(node_strenghts_cols, data.frame) %>% 
+  mutate(Measure = "Node Strength")
+  
+
+Closeness_cols.df <- Closeness_cols %>% 
+  plyr:::ldply(., data.frame) %>% 
+  mutate(Measure = "Closeness")
+
+Betweenness_cols.df <- Betweenness_cols %>% 
+  plyr:::ldply(., data.frame) %>% 
+  mutate(Measure = "Betweenness")
+
+(Global_measures_cols <- node_strenghts_cols.df %>%
+  bind_rows(list(., Closeness_cols.df, Betweenness_cols.df)) %>%
+  dplyr::rename(value = `X..i..`, Color = `.id`) %>%
+  data.table::dcast(., Color ~ Measure, fun.aggregate = mean, value.var = "value", na.rm = T))
+
+```
+
+I think that the most dangerous is the black virus.
 
