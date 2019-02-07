@@ -1,0 +1,346 @@
+---
+title: "Day 1 Exercises - PNAWS2019"
+author: "Martina Pocchiari"
+date: "1/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(data.table)
+library(dplyr)
+library(foreign)
+library(qgraph)
+library(igraph)
+```
+
+## Morning Session Exercises
+
+The dataset you have consists of data from 5000 hypothetical subjects on six variables, each of which has two values: 
+cancer: whether a person has cancer. 0=no, 1=yes.
+try: how often a person has tried cigarettes during adolescence. 0=not often, 1=often. 
+genes: whether a person has good or bad genes. 0=good, 1=bad.
+smoke: whether a person is a smoker. 0=no, 1=yes.
+susceptibility: whether a person is susceptible to smoking
+addiction. 0=no, 1=yes.
+fingers: whether a person has yellow-stained fingers. 0=no, 1=yes.
+
+The model is generated using a DAG. Your job is to figure out how the arrows run. You can use two instruments for this purpose: first, you can check whether any two variables are independent, and second, you can check whether any two variables are conditionally independent, given a third.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+datafile=read.table(file='http://sachaepskamp.com/files/NA2014/datafile.txt')
+attach(datafile) 
+source('http://sachaepskamp.com/files/NA2014/program.txt')
+#datafile
+
+```
+
+### Checking independence:
+To check whether two variables X1 and X2 are independent, you type 'ind(X1,X2)'. The output gives the contingency table for X1 and X2, the expected contingency table for X1 and X2 under independence, and a test of the null hypothesis that the variables are independent in the population. If p<.05, then the program concludes that the variables are dependent; otherwise that they are independent.
+
+
+```{r, warning=F, message=F, echo=FALSE}
+
+ind(smoke, cancer)
+
+```
+
+### Checking conditional independence:
+To check whether two variables X1 and X2 are conditionally independent, given X3, you type 'cind(var1=X1, var2=X2, blocker=X3)'. 'Blocker' is the variable you condition on. The output gives separate contingency tables for X1 and X2 for the values of X3, the expected contingency tables for X1 and X2 under conditional independence given X3, and a test of the null hypothesis that X1 and X2 are conditionally independent of X3 in the population. If p<.05, then the program concludes that the variables are conditionally dependent given the blocker; otherwise that they are independent.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+cind(var1=smoke, var2=cancer, blocker=try)
+
+```
+
+### 1. Consider the three variables ‘fingers’,’cancer’ and ‘smoke’.
+
+#### a. Are ‘fingers’ and ‘cancer’ independent?
+
+No, they are not independent.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+ind(fingers, cancer)
+
+```
+
+#### b. Are ‘smoke’ and ‘cancer’ conditionally independent given ‘fingers’?
+
+According to the test, conditional independence of smoke and cancer, given fingers, does not hold. 
+
+```{r, warning=F, message=F, echo=FALSE}
+
+cind(var1 = smoke, var2 = cancer, blocker = fingers)
+
+```
+
+#### c. Are ‘fingers’ and ‘cancer’ conditionally independent given ‘smoke’?
+
+According to the results, Conditional independence of fingers and cancer, given smoke, holds.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+cind(var1 = fingers, var2 = cancer, blocker = smoke)
+
+```
+
+#### d. Are ‘smoke’ and ‘fingers’ conditionally independent given ‘cancer’?
+
+According to the results, fingers and smoke, given cancer, are not conditionally independent.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+cind(var1 = fingers, var2 = smoke, blocker = cancer)
+
+```
+
+#### e. Do any additional checks you want. Which causal paths are consistent with the data for these three variables?
+
+Conditional Independencies:
+
+* genes and cancer, given smoke
+* genes and cancer, given susceptibility
+* try and cancer, given smoke
+* susceptibility and try, given genes
+
+Conditional Dependencies:
+
+* fingers and cancer, given try
+* smoke and cancer, given try
+* susceptibility and try, given genes 
+
+
+```{r, warning=F, message=F, echo=FALSE}
+
+cind(var1 = genes, var2 = cancer, blocker = smoke)
+cind(var1 = genes, var2 = cancer, blocker = susceptible)
+
+
+cind(var1 = smoke, var2 = cancer, blocker = try)
+cind(var1 = susceptible, var2 = try, blocker = genes)
+cind(var1 = genes, var2 = smoke, blocker = susceptible)
+cind(var1 = genes, var2 = smoke, blocker = try)
+cind(var1 = try, var2 = fingers, blocker = smoke)
+
+ind(fingers, cancer)
+cind(var1 = fingers, var2 = cancer, blocker = try)
+cind(var1 = fingers, var2 = cancer, blocker = smoke)
+
+
+ind(genes, cancer)
+cind(var1 = genes, var2 = cancer, blocker = susceptible)
+cind(var1 = genes, var2 = cancer, blocker = smoke)
+cind(var1 = genes, var2 = cancer, blocker = try)
+
+ind(try, cancer)
+cind(var1 = try, var2 = cancer, blocker = smoke)
+cind(var1 = try, var2 = cancer, blocker = susceptible)
+cind(var1 = try, var2 = cancer, blocker = genes)
+
+ind(try, smoke)
+cind(var1 = try, var2 = smoke, blocker = genes)
+cind(var1 = try, var2 = smoke, blocker = susceptible)
+
+ind(susceptible, smoke)
+cind(var1 = susceptible, var2 = smoke, blocker = try)
+
+ind(fingers, smoke)
+cind(var1 = fingers, var2 = smoke, blocker = try)
+cind(var1 = fingers, var2 = smoke, blocker = susceptible)
+cind(var1 = fingers, var2 = smoke, blocker = genes)
+
+ind(fingers, try)
+cind(var1 = try, var2 = fingers, blocker = susceptible)
+cind(var1 = try, var2 = fingers, blocker = smoke)
+
+ind(genes, try)
+ind(susceptible, try)
+cind(var1 = genes, var2 = try, blocker = susceptible)
+
+ind(genes, fingers)
+cind(var1 = genes, var2 = fingers, blocker = smoke)
+cind(var1 = genes, var2 = fingers, blocker = susceptible)
+cind(var1 = genes, var2 = smoke, blocker = susceptible)
+
+ind(genes, susceptible)
+cind(var1 = genes, var2 = susceptible, blocker = try)
+cind(var1 = genes, var2 = susceptible, blocker = smoke)
+
+ind(susceptible, try)
+cind(var1 = try, var2 = susceptible, blocker = smoke)
+
+ind(smoke, cancer)
+cind(var1 = smoke, var2 = cancer, blocker = fingers)
+cind(var1 = smoke, var2 = cancer, blocker = fingers)
+
+ind(smoke, genes)
+cind(var1 = smoke, var2 = susceptible, blocker = genes)
+cind(var1 = smoke, var2 = genes, blocker = susceptible)
+
+```
+
+
+## Afternoon Session Exercises
+
+
+```{r, warning=F, message=F, echo=FALSE}
+
+library("psych")
+if (!require("bnlearn")) install.packages("bnlearn")
+library("bnlearn")
+library(qgraph)
+if (!require("bootnet")) install.packages("bootnet")
+library(bootnet)
+```
+
+### Conceptual
+
+Suppose the following model is the true data-generating model of nine symptoms
+
+#### Theoretically, what should the Gaussian graphical model (GGM; a network of partial correlation coefficients) of the nine observed symptoms look like? Plot or draw the expected network (use only the numbers as node labels). Tip: Note that GAD is not observed and thus (a) not in the GGM and (b) not a node we can condition on.
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+qgraph(matrix(1,9,9))
+```
+
+
+#### Suppose we only look at assignments that were graded with a 10. Are motivation and difficulty still independent? That is, in these assignments can we now predict the difficulty from motivation or vice versa? Explain your answer. Tip: if a student with a very poor motivation gets a 10, what does that tell us about the difficulty of the assignment?
+
+Motivation and difficulty are now conditionally dependent, because they are common causes to the same consequence. 
+If a student with very poor motivation gets a 10, this tells us that the difficulty of the assignment would be very low. 
+
+### Markov Random Fields
+
+The data frame bfiData contains the questions of the bfi (Big Five Inventory) data contained in the psych package.
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+data("bfi")
+bfiData <- bfi[,1:25]
+
+corMat <- cor_auto(bfiData)
+
+
+```
+
+#### Obtain the weights matrices from qgraph and bootnet by applying the getWmat function to output of both. Confirm that the results are identical (tip: the operator == tests if values in R are equal)
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+Result_pcor <- estimateNetwork(bfiData, default = "pcor")
+
+qgp <- qgraph(corMat, graph = "pcor", layout = "spring", cut = 0, title = "QGraph Plot")
+bnp <- plot(Result_pcor, layout = "spring", cut = 0, title = "Bootnet Plot")
+
+```
+
+Qplot weight matrix:
+
+```{r, warning=F, message=F, fig.show = 'hide', echo=FALSE}
+getWmat(qgp)
+```
+
+Bootnet weight matrix:
+
+```{r, warning=F, message=F, fig.show = 'hide', echo=FALSE}
+getWmat(bnp)
+```
+
+#### What do the arguments groups and nodeNames do?
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+
+Names <- scan("http://sachaepskamp.com/files/BFIitems.txt",
+              what = "character", sep = "\n")
+
+Traits <- rep(c(
+  'Agreeableness',
+  'Conscientiousness',
+  'Extraversion',
+  'Neuroticism',
+  'Opennness'),each=5)
+
+plot(Result_pcor,
+     layout = "spring",
+     cut = 0,
+     theme = "colorblind",
+     groups = Traits,
+     nodeNames = Names,
+     legend.cex = 0.4)
+```
+
+The argument groups highlights with different colors the nodes that are assigned the same given label.
+The argument nodeNames is used to juxtappose descriptions to the labels, and the descriptions are then shown in the legend of the plot.
+
+####  In estimateNetwork, use the threshold argument to remove all edges that are not significant after applying a bonferroni correction. Plot the resulting network.
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+Result_pcor_thresh <- estimateNetwork(bfiData, default = "pcor", threshold = "bonferroni")
+
+plot(Result_pcor_thresh,
+     layout = "spring",
+     cut = 0,
+     theme = "colorblind",
+     groups = Traits,
+     nodeNames = Names,
+     legend.cex = 0.4)
+```
+
+#### Use the default argument in estimateNetwork to estimate a partial correlation network using glasso and EBIC model selection
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+Result_pcor_EBIC <- estimateNetwork(bfiData, default = "EBICglasso")
+
+plot(Result_pcor_EBIC,
+     layout = "spring",
+     cut = 0,
+     theme = "colorblind",
+     groups = Traits,
+     nodeNames = Names,
+     legend.cex = 0.4)
+```
+
+#### Set the hypertuningparameter γ to 0. Did the network change?
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+Result_EBIC_tuning <- estimateNetwork(bfiData, default = "EBICglasso", tuning = 0)
+
+L <- averageLayout(Result_pcor_EBIC,Result_EBIC_tuning)
+layout(t(1:2))
+plot(Result_pcor_EBIC, layout = L, cut = 0)
+plot(Result_EBIC_tuning, layout = L, cut = 0) 
+
+```
+
+
+#### Compute a thresholded regularized GGM and an unregularized GGM using these new functions, and compare your results to your previous results.
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+
+Result_thresholded_EBIC <- estimateNetwork(bfiData, default = "EBICglasso", threshold = TRUE)
+Result_unregularized <- estimateNetwork(bfiData, default = "ggmModSelect", tuning = 0)
+
+L <- averageLayout(Result_pcor_EBIC,Result_EBIC_tuning,Result_thresholded_EBIC,Result_unregularized)
+layout(matrix(c(1:4), nrow = 2, ncol = 2))
+plot(Result_pcor_EBIC, layout = L, cut = 0)
+plot(Result_EBIC_tuning, layout = L, cut = 0) 
+plot(Result_thresholded_EBIC, layout = L, cut = 0)
+plot(Result_unregularized, layout = L, cut = 0) 
+
+```
+
+#### Set the default to estimate a regularized Ising model using γ = 0.5 (bootnet will automatically binarize the data for you). Compare your results with the EBIC glasso network using γ = 0.5.
+
+
+``` {r, warning=F, message=F,  fig.width=10, fig.height=4, fig.align='center', echo=FALSE}
+
+Res_Ising <- estimateNetwork(bfiData, default = "IsingFit")
+L <- averageLayout(Result_pcor_EBIC, Res_Ising)
+layout(t(1:2))
+plot(Result_pcor_EBIC, layout = L, cut = 0)
+plot(Res_Ising, layout = L, cut = 0)
+
+```
+
+
+

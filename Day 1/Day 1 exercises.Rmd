@@ -28,7 +28,7 @@ The rows stand for the character pairings relationship strength. The columns sta
 
 Data <- read.csv("Practical_1.2/stormofswords.csv", stringsAsFactors = F)
 
-
+str(Data)
 View(Data)
 qgraph(Data, directed = FALSE)
 ```

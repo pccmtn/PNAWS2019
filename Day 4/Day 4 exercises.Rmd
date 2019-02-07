@@ -1,0 +1,130 @@
+---
+title: "Day 4 Exercises - PNAWS2019"
+author: "Martina Pocchiari"
+date: "1/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(data.table)
+library(dplyr)
+library(foreign)
+library(qgraph)
+library(igraph)
+
+getwd()
+
+source("networkAnalysisAssignement.R")
+load("dat.RData")
+
+```
+
+# Morning Session Exercises
+
+## Part 1
+
+### Given is a large data set called dat in R with 8 variables and n = 5000 observations. These observations are from a non-experimental setting, i.e., an observational study. We will first inspect the correlations and partial correlations. Find the correlation between variables 2 and 6. Do you think there could be a connection between these variables?
+
+There is a moderate positive correlation of 0.508, so there may be a connection between these variables (unconditional correlation).
+
+```{r, warning=F, message=F, echo=FALSE}
+
+dat.cor <- cor(dat)
+dat.cor[2, 6]
+
+```
+
+### Next consider the partial correlations. Compare the partial correlation between 2 and 6 to the correlation of that same pair. What do you find? Is this surprising? Explain the difference briefly?
+
+An element of this matrix tells you what the correlation is between variables i and j when all other variables have been partialled out, i.e., have no influence on the correlation between i and j.
+If X and Y are independent conditional on Z then they are conditionally uncorrelated, i.e. the partial correlation between X and Y is 0.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+dat.pcor <- cor2pcor(dat.cor)
+dat.pcor[2, 6]
+
+```
+
+The partial correlation between 2 and 6 is small and negative. This means that, controlling for all other variables, 2 and 6 are weakly and negatively conditionally correlated. 
+
+### To get a better view at what the interesting partial correlations are, we can use a method called SIN, which stands for (Significant, Intermediate, Non-significant). Given the results from SIN, which of the connections do you think are likely for these data? 
+
+In this algorithm each of the partial correlations is tested against 0 (recall: If X and Y are independent conditional on Z then the partial correlation between X and Y is 0). The P-values have been corrected for multiple comparisons, since you are performing several tests simultaneously (in fact you are doing p(p − 1)/2) tests).
+
+The result is a figure with on the x-axis all possible connections and on the y-axis the P-values. There are two threshold lines in gray, one at 0.1 and one at 0.5. All below 0.1 are significant, all between 0.1 and 0.5 are intermediate (possibly interesting), and finally, all above 0.5 are non-significant. 
+
+
+Given the results from SIN, we notice that the connections that are statistically significantly different from zero are:
+* 1-2, 1-5, 1-6, 1-8
+* 2-3, 2-5
+* 5-6, 5-8
+* 6-7
+
+Therefore, these x and y pairs are dependent conditional on all other variables.
+On the other hand, the connections not different from zero are:
+* 1-3, 1-4, 1-7
+* 2-4, 2-6, 2-7, 2-8
+* 3-4, 3-5, 3-6, 3-7, 3-8,
+* 4-5, 4-6, 4-7, 4-8
+* 5-7
+* 6-8
+* 7-8
+
+Therefore, these x and y pairs are independent conditional on all other variables.
+
+
+```{r, warning=F, message=F, echo=FALSE}
+sin.ag(dat)
+
+test <- sin.ag(dat)
+test$pval
+```
+
+## Part 2
+
+### Now that we know a a bit about the data, we can try some algorithms. What is the p-value for the correlation between nodes 1 and 4? And what does this mean?
+
+The p value for the correlation between 1 and 4 is 0.47, meaning that the correlation is not different from 0. 
+
+```{r, warning=F, message=F, echo=FALSE}
+
+suffStat <- list(C=dat.cor,n=5000)
+indepTest <- gaussCItest
+alpha <- 0.1
+p <- 8
+
+set.seed(34)
+skel <- skeleton(suffStat, indepTest, alpha, p=p, verbose=TRUE)
+
+```
+
+### How can you find out in this list why node 4 is isolated? Hint: Consider simple correlations.
+
+Edge 4 is isolated because it doesn't have any simple correlation with another variable that is different from 0.
+
+```{r, warning=F, message=F, echo=FALSE}
+
+qgraph(skel)
+
+```
+
+### Why is there no edge between nodes 1 and 5 in the skel solution? Explain briefly. Hint: Consider partial correlations.
+
+We can see that, although the simple correlation between 1 and 5 is different from 0, the partial correlation is not and this means that 1 and 5 are conditionally independent. So, their relationship is only realized conditional on another variable.
+
+### What are the similarities and what are the differences? Which edge is likely from sin.ag() that is not included in skeleton()? How can you explain this?
+
+Sin.ag considers a relationship between 1 and 5. But that's only present if we condition on all the variables simultaneously.
+
+### Explain briefly why you think that the connection between nodes 2 and 3 remains unresolved (it is still an undirected edge)?
+
+That is because they are both a direct connection and no conditional independence. But we cannot say whether the relation goes from one direction or the other. 
+
+```{r, warning=F, message=F, echo=FALSE}
+
+set.seed(34)
+pc.fit <- pc(suffStat,indepTest,alpha, p=p,verbose=TRUE)
+qgraph(pc.fit)
+
+```

@@ -1,0 +1,322 @@
+---
+title: "The Effects of Community and Activity Characteristics on Participation Intentions: Evidence from Meetup.com"
+subtitle: "PNAWS 2019"
+author: Martina Pocchiari
+institute: Rotterdam School of Management, Erasmus University
+date: "01-02-2019"
+output:
+  beamer_presentation:
+    pandoc_args: [
+#      "-M", "classoption=a4paper"
+      "-M", "classoption=a4paper,handout"
+    ]
+    includes:
+      in_header: preamble.tex
+    incremental: true
+    theme: "CambridgeUS"
+    colortheme: "spruce"
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, warning=F, message=F, echo=FALSE, include = F}
+##############################                   PNAWS 2019           ###########################
+##############################                     DAY 5              ###########################
+##############################                WORK ON OWN DATA        ###########################
+
+library(data.table)
+library(dplyr)
+library(qgraph)
+#library(igraph)
+library(ggplot2)
+source("~/Dropbox (RSM)/PNWC2019/PNAWS2019/Day 4/networkAnalysisAssignement.R")
+source('http://sachaepskamp.com/files/NA2014/program.txt')
+
+```
+
+
+## AGENDA
+
+- Brand Communities: Research Context and Data
+
+- Modeling ideas
+
+- Critical points
+
+## ABOUT ME...
+
+- PhD Candidate at RSM
+
+- Italian AF
+
+I like:
+
+- Applied Econometrics
+
+- Art and literature
+
+- Sleeping
+
+
+## ABOUT THE GOOD STUFF: COMMUNITIES
+
+Communities\footnote{Hamman 2001; Hercheui 2011; Preece 2000}
+
+- Commercial (Brand\footnote{Muniz 2001}) and non-commercial
+    
+- Offline and online
+
+
+## STATE OF THE ART
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{SOA1.png}
+}
+
+## STATE OF THE ART
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{SOA2.png}
+}
+
+
+## STATE OF THE ART: PARTICIPATION PHASE
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{Participation.png}
+}
+
+## CONTEXT
+
+- Meetup.com
+
+## CONTEXT: MEETUP.COM
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{meetup_page.png}
+}
+
+## CONTEXT: MEETUP.COM
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{RSVPs.png}
+}
+
+## RESEARCH QUESTIONS
+
+1. Effect of context/activity features on level of activity (RSVP's)
+
+2. Effect of group features on level of activity (RSVP's)
+
+3. Difference in effects between commercial and non-commercial communities
+
+4. Difference in effects across heterogeneous group members
+
+## DATA
+
+- 15 large cities in U.S.A.
+
+- 33 categories of interest
+
+- Several thousands of groups and millions of members
+
+- Ongoing data collection
+
+## DATA: OBSERVABLES
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{Participation.png}
+}
+
+
+## DATA: EXAMPLES
+
+
+```{r, warning=F, message=F, echo=FALSE}
+##############################                LOAD OWN DATA        ###########################
+
+# MEMB_all <- fread("~/Dropbox (RSM)/Projects/Meetup/Data/Final_data/Refactored_Data/all_members.csv", stringsAsFactors = F) %>%
+#   distinct
+# #
+# GRPS_all <- fread("~/Dropbox (RSM)/Projects/Meetup/Data/Final_data/Refactored_Data/all_groups.csv", stringsAsFactors = F) %>% filter(group.city %like% "New York") %>% distinct
+# #
+# #
+# MEMB_all <- MEMB_all %>% filter(group.urlname %in% unique(GRPS_all$group.urlname))
+
+MEMB_all <- fread("members_groups_NYC.csv", stringsAsFactors = F)
+GRPS_all <- fread("groups_NYC.csv", stringsAsFactors = F)
+
+```
+
+
+## DATA: EXAMPLES
+
+All the groups in New York that deal with technology and career
+
+```{r, warning=F, message=F, echo=FALSE}
+
+### Visualize groups, categories and how many members they have in common. 
+
+MEMB_GRPS <- MEMB_all %>%
+  dplyr::select(member.id, member.name, group.urlname) %>%
+  #dplyr::rename(urlname = group.urlname) %>%
+  distinct %>%
+inner_join(., GRPS_all %>% dplyr::select(group.urlname, group.city) %>% distinct)
+
+rm(MEMB_all)
+
+members_network.m <- MEMB_GRPS %>%
+  dplyr::select(member.id, group.urlname)%>%
+  data.table::melt(., id.vars = c("group.urlname"))
+
+n_members_per_group <- MEMB_GRPS %>%
+  group_by(group.urlname) %>%
+  summarise(n_members = n_distinct(member.id)) %>%
+  arrange(desc(n_members)) %>%
+  distinct
+
+n_common_member_per_group <- members_network.m %>%
+  full_join(., ., by = "value") %>%
+  filter(group.urlname.x != group.urlname.y) %>%
+  dplyr::select(value, group.urlname.x, group.urlname.y) %>%
+  rename(i = group.urlname.x, j = group.urlname.y) %>%
+  dplyr::select(-value) %>%
+  group_by(i, j) %>%
+  mutate(n = n()) %>%
+  distinct()
+
+urlnames <- data.frame(group.urlname = n_common_member_per_group$i)
+
+urlnames <- urlnames %>% inner_join(., GRPS_all %>% dplyr::select(group.urlname, group.type))
+  
+
+qgraph(n_common_member_per_group, layout = "spring", 
+       edge.color = 'darkblue', 
+       vsize = 3, 
+       directed = F, 
+       title = "Tech/Career Groups in NYC")
+
+```
+
+## DATA: EXAMPLES 
+
+Groups by group type
+
+```{r, warning=F, message=F, echo=FALSE}
+
+adj <- members_network.m %>%
+  full_join(., ., by = "value") %>%
+  filter(group.urlname.x != group.urlname.y) %>%
+  dplyr::select(value, group.urlname.x, group.urlname.y) %>%
+  rename(i = group.urlname.x, j = group.urlname.y) %>%
+  dplyr::select(-value) %>%
+  inner_join(., urlnames %>% distinct %>% dplyr::rename(i = group.urlname))
+
+g.1 <- adj %>%
+  dplyr::select(i, j) %>%
+  as.matrix %>%
+  graph.edgelist(., directed = F)
+
+Edgelist.cat <- get.adjacency(g.1)
+# Labels:
+V(g.1)$labels <- names(V(g.1))
+Labels <- V(g.1)$labels
+
+num_colors <- nlevels(factor(adj$group.type))
+
+color_pallete_function <- colorRampPalette(
+  colors = c("red", "blue"))
+
+cat_colors <- color_pallete_function(num_colors)
+
+Colors <- data.frame(group.type = levels(factor(urlnames$group.type)), Col = cat_colors)
+
+grp_cols <- data.frame(group.urlname = colnames(Edgelist.cat)) %>% inner_join(., GRPS_all %>% dplyr::select(group.urlname, group.type)) %>% inner_join(., Colors)
+
+g <- qgraph(Edgelist.cat, labels = Labels, groups = as.character(grp_cols$group.type), color = as.character(grp_cols$Col),
+            layout= "spring", directed = FALSE, edge.color = "black",
+            vsize = 5, esize = 2, label.cex = 2)
+```
+
+
+## DATA: EXAMPLES 
+
+Members' connections
+
+```{r, warning=F, message=F, echo=FALSE}
+
+members_network <- members_network.m %>%
+  full_join(., ., by = "group.urlname") %>%
+  filter(value.x != value.y) %>%
+  dplyr::select(group.urlname, value.x, value.y) %>%
+  dplyr::rename(i = value.x, j = value.y)
+
+edge_list <- members_network %>%
+  group_by(i, j) %>%
+  mutate(n = n()) %>%
+  ungroup %>%
+  distinct
+
+```
+
+## MODELING
+
+- Causal relations
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{Participation_variables.png}
+}
+
+## ESTIMATION
+
+- Bayesian models
+
+- Stan estimation
+
+## CRITICAL POINTS
+
+- Endogeneity
+
+- Serial correlation
+
+- Huge data!
+
+## CRITICAL POINTS: ENDOGENEITY
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{entry_fee_backdoor.png}
+}
+
+## CRITICAL POINTS: ENDOGENEITY
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{RSVP_limitation_backdoor.png}
+}
+
+## CRITICAL POINTS: ENDOGENEITY
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{series_backdoor.png}
+}
+
+## CRITICAL POINTS: ENDOGENEITY
+
+\center{
+\includegraphics[keepaspectratio,height=2.3in,width=3.3in]{schedule_backdoor.png}
+}
+
+## CRITICAL POINTS: SERIAL CORRELATION
+
+- Choices of people at t influence their decisions at t+1
+
+## CRITICAL POINTS: HUGE DATA
+
+- The members of just 23 groups result in a 3.6 billion-line dataframe of edges and weights.
+
+- Actual data: thousands of groups...Hundreds of billion of edges??
+
+
+
